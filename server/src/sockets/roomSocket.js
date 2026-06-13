@@ -6,6 +6,112 @@ const generateRoomCode =
 
 const rooms = {};
 
+function startRound(io, roomCode, room, words) {
+
+  const drawer =
+    room.players[
+    room.game.currentDrawerIndex
+    ];
+
+  const options =
+    [...words]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+
+  io.to(drawer.id).emit(
+    "choose_word",
+    {
+      options
+    }
+  );
+}
+
+
+
+function endRound(
+  io,
+  roomCode,
+  room
+) {
+
+  clearTimeout(
+    room.game.timer
+  );
+
+  io.to(roomCode).emit(
+    "round_end",
+    {
+      word:
+        room.game.currentWord
+    }
+  );
+
+  room.game.currentWord =
+    "";
+
+  room.game.currentDrawerIndex++;
+
+  if (
+    room.game.currentDrawerIndex >=
+    room.players.length
+  ) {
+    room.game.currentDrawerIndex = 0;
+  }
+
+  if (
+    room.game.currentDrawerIndex === 0
+  ) {
+    room.game.currentRound++;
+  }
+
+  if (
+    room.game.currentRound >
+    room.settings.rounds
+  ) {
+
+    const winner =
+      [...room.players]
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        )[0];
+
+    io.to(roomCode).emit(
+      "game_over",
+      {
+        winner,
+        leaderboard:
+          room.players
+      }
+    );
+
+    return;
+  }
+
+  io.to(roomCode).emit(
+    "round_update",
+    {
+      round:
+        room.game.currentRound,
+      totalRounds:
+        room.settings.rounds
+    }
+  );
+
+  setTimeout(() => {
+
+    startRound(
+      io,
+      roomCode,
+      room,
+      words
+    );
+
+  }, 3000);
+}
+
+
+
 module.exports = (io) => {
 
   io.on("connection", (socket) => {
@@ -41,7 +147,8 @@ module.exports = (io) => {
           game: {
             currentRound: 1,
             currentDrawerIndex: 0,
-            currentWord: ""
+            currentWord: "",
+            timer: null
           }
         };
 
@@ -127,32 +234,18 @@ module.exports = (io) => {
 
       if (room.hostId !== socket.id) return;
 
-      // Navigate everyone to GameRoom
       io.to(roomCode).emit("game_started");
 
-const drawer =
-  room.players[
-    room.game.currentDrawerIndex
-  ];
+      setTimeout(() => {
 
-const options =
-  words
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+        startRound(
+          io,
+          roomCode,
+          room,
+          words
+        );
 
-setTimeout(() => {
-
-  console.log("Drawer ID:", drawer.id);
-console.log("Options:", options);
-
-  io.to(drawer.id).emit(
-    "choose_word",
-    {
-      options
-    }
-  );
-
-}, 1000);
+      }, 1000);
 
     });
 
@@ -169,13 +262,89 @@ console.log("Options:", options);
         room.game.currentWord =
           word;
 
+        room.game.timer =
+          setTimeout(() => {
+
+            endRound(
+              io,
+              roomCode,
+              room
+            );
+
+          }, room.settings.drawTime * 1000);
+
         io.to(roomCode).emit(
           "round_started",
           {
             drawerId:
               room.players[
                 room.game.currentDrawerIndex
-              ].id
+              ].id,
+
+            drawTime:
+              room.settings.drawTime
+          }
+        );
+
+      }
+    );
+
+
+    socket.on(
+      "guess",
+      ({ roomCode, text }) => {
+
+        const room =
+          rooms[roomCode];
+
+        if (!room) return;
+
+        const player =
+          room.players.find(
+            p => p.id === socket.id
+          );
+
+
+        const currentWord =
+          room.game.currentWord;
+
+        if (
+          text.trim().toLowerCase() ===
+          currentWord.trim().toLowerCase()
+        ) {
+
+          player.score += 100;
+
+          io.to(roomCode).emit(
+            "guess_result",
+            {
+              correct: true,
+              playerId: player.id,
+              playerName: player.name,
+              points: player.score
+            }
+          );
+
+          io.to(roomCode).emit(
+            "score_update",
+            room.players
+          );
+
+          endRound(
+            io,
+            roomCode,
+            room
+          );
+
+          return;
+        }
+
+        io.to(roomCode).emit(
+          "chat_message",
+          {
+            playerId: socket.id,
+            playerName: player.name,
+            text
           }
         );
 
