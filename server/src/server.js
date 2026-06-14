@@ -15,12 +15,17 @@ app.use(cors({
 
 const server = http.createServer(app);
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.CLIENT_URL
+];
+
 const io = new Server(server, {
-    cors: {
-         origin: process.env.CLIENT_URL,
-         credentials: true,
-         methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST"]
+  }
 });
 
 roomSocket(io);
