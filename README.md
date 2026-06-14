@@ -62,5 +62,5 @@ create_room
 join_room
 start_game
 guess
-score_update
+score_updat
 game_over
