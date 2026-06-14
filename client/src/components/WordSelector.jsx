@@ -1,10 +1,12 @@
+import "../styles/canvas.css";
+
 function WordSelector({
   words,
   onSelect
 }) {
 
   return (
-    <div>
+    <div className="word-selector">
 
       <h2>
         Choose A Word

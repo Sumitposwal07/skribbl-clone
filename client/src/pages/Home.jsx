@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { socket } from "../socket/socket";
+import "../styles/home.css";
+import { toast } from "react-toastify";
 
 function Home() {
   const navigate = useNavigate();
@@ -10,7 +12,7 @@ function Home() {
 
   const createRoom = () => {
     if (!playerName.trim()) {
-      return alert("Enter name");
+      return toast.error("Please enter your name");
     }
 
     socket.emit(
@@ -26,7 +28,11 @@ function Home() {
 
   const joinRoom = () => {
     if (!playerName.trim()) {
-      return alert("Enter name");
+      return toast.error("Please enter your name");
+    }
+
+    if (!roomCode.trim()) {
+      return toast.error("Please enter room code");
     }
 
     socket.emit(
@@ -39,44 +45,61 @@ function Home() {
         if (response.success) {
           navigate(`/lobby/${roomCode}`);
         } else {
-          alert(response.message);
+          toast.error(response.message);
         }
       }
     );
   };
 
   return (
-    <div>
-      <h1>Skribbl Clone</h1>
+    <div className="home-container">
+      <div className="home-card">
 
-      <input
-        placeholder="Name"
-        value={playerName}
-        onChange={(e) =>
-          setPlayerName(e.target.value)
-        }
-      />
+        <h1 className="home-title">
+          Skribbl Clone
+        </h1>
 
-      <br />
+        <div className="input-group">
 
-      <button onClick={createRoom}>
-        Create Room
-      </button>
+          <input
+            className="home-input"
+            placeholder="Enter Your Name"
+            value={playerName}
+            onChange={(e) =>
+              setPlayerName(e.target.value)
+            }
+          />
 
-      <br />
-      <br />
+          <button
+            className="home-btn create-btn"
+            onClick={createRoom}
+          >
+            Create Room
+          </button>
 
-      <input
-        placeholder="Room Code"
-        value={roomCode}
-        onChange={(e) =>
-          setRoomCode(e.target.value)
-        }
-      />
+          <div className="divider">
+            OR
+          </div>
 
-      <button onClick={joinRoom}>
-        Join Room
-      </button>
+          <input
+            className="home-input"
+            placeholder="Enter Room Code"
+            value={roomCode}
+            onChange={(e) =>
+              setRoomCode(e.target.value)
+            }
+          />
+
+          <button
+            className="home-btn join-btn"
+            onClick={joinRoom}
+          >
+            Join Room
+          </button>
+
+        </div>
+
+      </div>
     </div>
   );
 }

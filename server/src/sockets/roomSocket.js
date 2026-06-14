@@ -26,6 +26,42 @@ function startRound(io, roomCode, room, words) {
   );
 }
 
+function revealHint(
+  io,
+  roomCode,
+  room
+) {
+
+  const word =
+    room.game.currentWord;
+
+  room.game.revealedLetters++;
+
+  const revealed =
+    word
+      .split("")
+      .map((char, index) => {
+
+        if (
+          index <
+          room.game.revealedLetters
+        ) {
+          return char;
+        }
+
+        return "_";
+      })
+      .join(" ");
+
+  io.to(roomCode).emit(
+    "word_update",
+    {
+      word: revealed
+    }
+  );
+
+}
+
 
 
 function endRound(
@@ -36,6 +72,10 @@ function endRound(
 
   clearTimeout(
     room.game.timer
+  );
+
+  clearInterval(
+    room.game.hintTimer
   );
 
   io.to(roomCode).emit(
@@ -132,7 +172,7 @@ module.exports = (io) => {
           settings: {
             maxPlayers: 8,
             rounds: 3,
-            drawTime: 80,
+            drawTime: 60,
             wordChoices: 3
           },
 
@@ -148,7 +188,9 @@ module.exports = (io) => {
             currentRound: 1,
             currentDrawerIndex: 0,
             currentWord: "",
-            timer: null
+            timer: null,
+            hintTimer: null,
+            revealedLetters: 0
           }
         };
 
@@ -262,8 +304,42 @@ module.exports = (io) => {
         room.game.currentWord =
           word;
 
+        room.game.revealedLetters = 0;
+
+        room.game.hintTimer =
+          setInterval(() => {
+
+            revealHint(
+              io,
+              roomCode,
+              room
+            );
+
+          }, 20000);
+
+        io.to(roomCode).emit(
+          "word_update",
+          {
+            word:
+              "_ ".repeat(word.length)
+          }
+        );
+
+        io.to(
+          room.players[
+            room.game.currentDrawerIndex
+          ].id
+        ).emit(
+          "word_update",
+          {
+            word
+          }
+        );
+
         room.game.timer =
           setTimeout(() => {
+
+            console.log("SERVER TIMER FINISHED");
 
             endRound(
               io,
@@ -273,13 +349,19 @@ module.exports = (io) => {
 
           }, room.settings.drawTime * 1000);
 
+        const currentDrawer =
+          room.players[
+          room.game.currentDrawerIndex
+          ];
+
         io.to(roomCode).emit(
           "round_started",
           {
             drawerId:
-              room.players[
-                room.game.currentDrawerIndex
-              ].id,
+              currentDrawer.id,
+
+            drawerName:
+              currentDrawer.name,
 
             drawTime:
               room.settings.drawTime
@@ -372,6 +454,18 @@ module.exports = (io) => {
         .emit("draw_end", data);
 
     });
+
+
+    socket.on(
+      "canvas_clear",
+      ({ roomCode }) => {
+
+        socket.to(roomCode).emit(
+          "canvas_clear"
+        );
+
+      }
+    );
 
     // DISCONNECT
     socket.on("disconnect", () => {

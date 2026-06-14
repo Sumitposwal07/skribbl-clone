@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Canvas from "../components/Canvas";
 import WordSelector from "../components/WordSelector";
 import { socket } from "../socket/socket";
+import { toast } from "react-toastify";
+import "../styles/game.css";
 
 function GameRoom() {
 
@@ -18,6 +20,19 @@ function GameRoom() {
   const [totalRounds, setTotalRounds] = useState(3);
   const [winner, setWinner] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [drawerName, setDrawerName] = useState("");
+  const [displayWord, setDisplayWord] = useState("");
+
+  const chatRef = useRef(null);
+
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop =
+        chatRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+
 
   useEffect(() => {
 
@@ -41,10 +56,12 @@ function GameRoom() {
       "round_started",
       ({
         drawerId,
+        drawerName,
         drawTime
       }) => {
 
         setDrawerId(drawerId);
+        setDrawerName(drawerName);
         setTimeLeft(drawTime);
 
       }
@@ -67,8 +84,8 @@ function GameRoom() {
       "guess_result",
       (data) => {
 
-        alert(
-          `${data.playerName} guessed correctly!`
+        toast.success(
+          `${data.playerName} guessed correctly! 🎉`
         );
 
       }
@@ -86,6 +103,9 @@ function GameRoom() {
       ({ word }) => {
 
         setRoundWord(word);
+        toast.info(
+          `📝 Word was: ${word}`
+        );
 
         setTimeout(() => {
           setRoundWord("");
@@ -110,6 +130,12 @@ function GameRoom() {
           totalRounds
         );
 
+        toast.dismiss();
+
+        toast.info(
+          `🎯 Round ${round} started`
+        );
+
       }
     );
 
@@ -127,6 +153,21 @@ function GameRoom() {
           leaderboard
         );
 
+        toast.dismiss();
+
+        toast.success(
+          `🏆 ${winner.name} wins the game!`
+        );
+
+      }
+    );
+
+    socket.on(
+      "word_update",
+      ({ word }) => {
+
+        setDisplayWord(word);
+
       }
     );
 
@@ -140,6 +181,7 @@ function GameRoom() {
       socket.off("round_end");
       socket.off("round_update");
       socket.off("game_over");
+      socket.off("word_update");
     };
 
   }, [roomCode]);
@@ -149,17 +191,13 @@ function GameRoom() {
 
     if (timeLeft <= 0) return;
 
-    const timer =
-      setInterval(() => {
+    const timer = setTimeout(() => {
 
-        setTimeLeft(prev =>
-          prev - 1
-        );
+      setTimeLeft(prev => prev - 1);
 
-      }, 1000);
+    }, 1000);
 
-    return () =>
-      clearInterval(timer);
+    return () => clearTimeout(timer);
 
   }, [timeLeft]);
 
@@ -184,12 +222,14 @@ function GameRoom() {
   if (winner) {
 
     return (
-      <div>
+      <div className="winner-screen">
 
-        <h1>Game Over</h1>
+        <h1>
+          🏆 Game Over
+        </h1>
 
         <h2>
-          Winner: {winner.name}
+          🥇 Winner: {winner.name}
         </h2>
 
         <h3>
@@ -238,107 +278,123 @@ function GameRoom() {
 
 
 
-    <div>
+    <div className="game-container">
 
-      <h1>Game Room</h1>
+      <header className="game-header">
+        <h1>Game Room</h1>
 
-      <h2>{roomCode}</h2>
+        <div className="room-info">
+          <span>Room: {roomCode}</span>
+          <span>Round {currentRound}/{totalRounds}</span>
+          <span>⏱ {timeLeft}s</span>
+        </div>
+      </header>
 
-      {
-        wordOptions.length > 0 && (
-          <WordSelector
-            words={wordOptions}
-            onSelect={chooseWord}
-          />
-        )
-      }
+      {wordOptions.length > 0 && (
+        <WordSelector
+          words={wordOptions}
+          onSelect={chooseWord}
+        />
+      )}
 
-      <h2>
-        Time Left:
-        {" "}
-        {timeLeft}s
-      </h2>
-
-      <h2>
-        Round
-        {" "}
-        {currentRound}
-        /
-        {totalRounds}
-      </h2>
-
-
-      <h2>Leaderboard</h2>
-
-      <div
-        style={{
-          border: "1px solid black",
-          padding: "10px",
-          marginBottom: "20px"
-        }}
-      >
-        {players
-          .sort((a, b) => b.score - a.score)
-          .map(player => (
-            <div key={player.id}>
-              {player.name} - {player.score}
-            </div>
-          ))}
-      </div>
-
-
-      {
-        roundWord && (
-          <h2>
-            Word was:
-            {" "}
-            {roundWord}
-          </h2>
-        )
-      }
-
-      <Canvas
-        roomCode={roomCode}
-        canDraw={isDrawer}
-      />
-
-      <div>
-
-        <h2>Chat</h2>
-
-        <div
-          style={{
-            height: "200px",
-            overflowY: "auto",
-            border: "1px solid black",
-            padding: "10px"
-          }}
-        >
-          {messages.map((msg, index) => (
-            <div key={index}>
-              <strong>{msg.playerName}</strong>:
-              {" "}
-              {msg.text}
-            </div>
-          ))}
+      <div className="game-status-bar">
+        <div className="status-card">
+          <h4>Current Word</h4>
+          <p>{displayWord}</p>
         </div>
 
-        <input
-          type="text"
-          value={guess}
-          onChange={(e) =>
-            setGuess(e.target.value)
-          }
-          placeholder="Type guess..."
-        />
-
-        <button onClick={sendGuess}>
-          Send
-        </button>
-
+        <div className="status-card">
+          <h4>Drawer</h4>
+          <p>{drawerName}</p>
+        </div>
       </div>
 
+      <div className="game-layout">
+
+        <aside className="leaderboard-card">
+
+          <h2>Leaderboard</h2>
+
+          {players
+            .slice()
+            .sort((a, b) => b.score - a.score)
+            .map((player, index) => (
+              <div
+                key={player.id}
+                className="player-row"
+              >
+                <span>
+                  #{index + 1}
+                </span>
+
+                <span>
+                  {player.name}
+                </span>
+
+                <span>
+                  {player.score}
+                </span>
+              </div>
+            ))}
+        </aside>
+
+        <main className="canvas-section">
+
+          {roundWord && (
+            <div className="word-reveal">
+              Word was: {roundWord}
+            </div>
+          )}
+
+          <Canvas
+            roomCode={roomCode}
+            canDraw={isDrawer}
+          />
+
+        </main>
+
+        {!isDrawer && (
+          <aside className="chat-card">
+
+            <h2>Chat</h2>
+
+            <div ref={chatRef} className="chat-messages">
+              {messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className="message"
+                >
+                  <strong>
+                    {msg.playerName}
+                  </strong>
+                  : {msg.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="chat-input-wrapper">
+
+              <input
+                type="text"
+                value={guess}
+                onChange={(e) =>
+                  setGuess(e.target.value)
+                }
+                placeholder="Type your guess..."
+              />
+
+              <button onClick={sendGuess}>
+                Send
+              </button>
+
+            </div>
+
+          </aside>
+        )}
+
+      </div>
     </div>
+
   );
 }
 

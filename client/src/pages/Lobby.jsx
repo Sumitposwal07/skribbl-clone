@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { socket } from "../socket/socket";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "../styles/lobby.css";
+
 
 function Lobby() {
   const { roomCode } = useParams();
@@ -50,34 +53,68 @@ function Lobby() {
 
   const isHost = socket.id === hostId;
 
-  const startGame = () => {
+ const startGame = () => {
 
-    socket.emit(
-      "start_game",
-      { roomCode }
-    );
+  if (players.length < 2) {
+    return toast.warning("At least 2 players required");
+  }
 
-  };
+  socket.emit(
+    "start_game",
+    { roomCode }
+  );
+};
 
   return (
-    <div>
-      <h1>Lobby</h1>
+    <div className="lobby-container">
 
-      <h3>Room: {roomCode}</h3>
+  <div className="lobby-card">
 
-      <h2>Players</h2>
-      {isHost && (
-        <button onClick={startGame}>
-          Start Game
-        </button>
-      )}
+    <div className="lobby-header">
+
+      <h1 className="lobby-title">
+        Game Lobby
+      </h1>
+
+      <div className="room-code">
+        Room: {roomCode}
+      </div>
+
+    </div>
+
+    <h2 className="players-title">
+      Players ({players.length}/8)
+    </h2>
+
+    <div className="players-grid">
 
       {players.map((player) => (
-        <div key={player.id}>
-          {player.name}
+
+        <div
+          key={player.id}
+          className="player-card"
+        >
+          <div className="player-name">
+            {player.name}
+          </div>
         </div>
+
       ))}
+
     </div>
+
+    {isHost && (
+      <button
+        className="start-btn"
+        onClick={startGame}
+      >
+        🚀 Start Game
+      </button>
+    )}
+
+  </div>
+
+</div>
   );
 }
 
