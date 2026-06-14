@@ -1,30 +1,30 @@
 # Architecture Overview
 
 Frontend:
-React
+React + Vite
 
 Backend:
-Node + Express + Socket.IO
+Node.js + Express + Socket.IO
 
-Real-Time Layer:
-Socket.IO
+Game Flow:
 
-Drawing Flow:
-Canvas -> Socket -> Server -> Other Players
+1. User creates or joins a room
+2. Players enter lobby
+3. Host starts game
+4. Drawer receives word options
+5. Drawer selects word
+6. Canvas events are broadcast via Socket.IO
+7. Guessers submit answers through chat
+8. Correct guesses update scores
+9. Multiple rounds are played
+10. Winner determined from leaderboard
 
-Guessing Flow:
-User Guess
-    ↓
-Server Validation
-    ↓
-Score Update
-    ↓
-Leaderboard Broadcast
+Canvas System:
+- HTML5 Canvas
+- draw_start
+- draw_move
+- draw_end
+- canvas_clear
 
-Room Flow:
-Create Room
-Join Room
-Lobby
-Start Game
-Rounds
-Winner
+Communication:
+Client <-> Socket.IO <-> Node Server
